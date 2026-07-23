@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>커뮤니티 웹앱 v1.2.0</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --sub-text: #666666;
+            --border-color: #e0e0e0;
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger-color: #ef4444;
+            --success-color: #10b981;
+            --admin-color: #8b5cf6;
+            --header-bg: #1e293b;
+            --header-text: #ffffff;
+            --pinned-bg: #fefce8;
+            --pinned-border: #fef08a;
+        }
+
+        body.dark-mode {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --sub-text: #94a3b8;
+            --border-color: #334155;
+            --header-bg: #020617;
+            --pinned-bg: #3b2d03;
+            --pinned-border: #854d0e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* 점검중 오버레이 (하얀 화면 + 검은 글씨) */
+        #maintenance-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #ffffff;
+            color: #000000;
+            z-index: 999999;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            padding: 20px;
+        }
+
+        #app-container {
+            width: 100%;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: max-width 0.3s;
+        }
+
+        #app-container.mobile-view {
+            max-width: 480px;
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        #app-container.pc-view {
+            max-width: 1100px;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .header-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .version-badge {
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: background-color 0.2s, opacity 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-danger { background-color: var(--danger-color); color: white; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-admin { background-color: var(--admin-color); color: white; }
+        .btn-secondary { background-color: #64748b; color: white; }
+        .btn-outline { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-color); }
+
+        /* User Profile Bar */
+        .user-bar {
+            background-color: var(--card-bg);
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .user-mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Gallery Nav */
+        .gallery-nav {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .gallery-tab {
+            padding: 6px 14px;
+            border-radius: 20px;
+            background-color: var(--bg-color);
+            color: var(--sub-text);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            border: 1px solid var(--border-color);
+        }
+
+        .gallery-tab.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 15px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        /* Post List Table */
+        .post-list {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .post-list th, .post-list td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .post-list th {
+            color: var(--sub-text);
+            font-weight: 600;
+        }
+
+        .post-list tr.pinned-row {
+            background-color: var(--pinned-bg);
+            font-weight: 600;
+        }
+
+        .post-title-cell {
+            cursor: pointer;
+            color: var(--text-color);
+        }
+        .post-title-cell:hover { text-decoration: underline; }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 4px;
+        }
+        .badge-blind { background-color: var(--danger-color); color: white; }
+        .badge-notice { background-color: var(--admin-color); color: white; }
+        .badge-pinned { background-color: #eab308; color: black; }
+
+        /* Post View */
+        .post-detail-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .post-detail-title {
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+
+        .post-detail-meta {
+            font-size: 0.85rem;
+            color: var(--sub-text);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .post-detail-content {
+            font-size: 1rem;
+            margin: 20px 0;
+            min-height: 100px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .post-detail-image {
+            max-width: 100%;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        .vote-box {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        /* Comments */
+        .comments-section {
+            margin-top: 25px;
+            border-top: 2px solid var(--border-color);
+            padding-top: 15px;
+        }
+
+        .comment-item {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+
+        .comment-item.reply {
+            margin-left: 20px;
+            padding-left: 10px;
+            border-left: 2px solid var(--border-color);
+        }
+
+        .comment-meta {
+            font-size: 0.8rem;
+            color: var(--sub-text);
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Forms */
+        .form-group { margin-bottom: 15px; }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        /* Auto Save Status Indicator */
+        .autosave-status {
+            font-size: 0.8rem;
+            color: var(--sub-text);
+            margin-left: 10px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 550px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        /* Toast & Notification */
+        .notification-btn-wrap {
+            position: relative;
+            display: inline-block;
+        }
+
+        .noti-badge-count {
+            position: absolute;
+            top: -5px; right: -5px;
+            background: var(--danger-color);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 10px;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px; right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background-color: var(--header-bg);
+            color: #fff;
+            padding: 12px 18px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-left: 4px solid var(--primary-color);
+            animation: slideIn 0.3s forwards;
+            font-size: 0.85rem;
+            max-width: 300px;
+        }
+
+        .toast.notice-toast { border-left-color: var(--admin-color); }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .noti-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+        }
+
+        .noti-item.unread {
+            background-color: rgba(59, 130, 246, 0.08);
+            font-weight: bold;
+        }
+
+        .loading-trigger {
+            text-align: center;
+            padding: 15px;
+            font-size: 0.85rem;
+            color: var(--sub-text);
+        }
+
+        @media (max-width: 600px) {
+            .hide-mobile { display: none; }
+            .post-list th, .post-list td { padding: 8px 4px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 관리자 점검중 오버레이 화면 -->
+<div id="maintenance-overlay">
+    죄송합니다! 서비스에 차질이 생겨 점검중 입니다!
+</div>
+
+<div id="app-container" class="pc-view">
+    <!-- Header -->
+    <header>
+        <div class="header-title" onclick="switchGallery(currentGalleryId)">
+            ⚡ 커뮤니티 <span class="version-badge" onclick="event.stopPropagation(); openPatchNotesModal();">v1.2.0</span>
+        </div>
+        <div class="header-controls">
+            <div class="notification-btn-wrap">
+                <button class="btn btn-outline" onclick="openNotificationModal()">🔔 알림 / ✉️ 메시지</button>
+                <span class="noti-badge-count" id="unread-noti-count" style="display: none;">0</span>
+            </div>
+            <button class="btn btn-outline" onclick="toggleDarkMode()">🌓 모드 변경</button>
+            <button class="btn btn-outline" onclick="toggleViewMode()">📱/💻 화면 전환</button>
+            <button class="btn btn-admin" onclick="openAdminModal()">⚙️ 관리자</button>
+        </div>
+    </header>
+
+    <!-- User Profile Bar -->
+    <div class="user-bar">
+        <div class="user-mode-toggle">
+            <label><input type="checkbox" id="anon-toggle" onchange="toggleAnonMode(this.checked)"> 익명으로 활동</label>
+        </div>
+        <div>
+            <span>현재 닉네임: <b id="user-nickname-display">유저1</b></span>
+            <button class="btn btn-outline" style="padding:2px 6px; font-size:0.75rem;" onclick="changeNickname()">변경</button>
+        </div>
+    </div>
+
+    <!-- Gallery Navigation -->
+    <div class="gallery-nav" id="gallery-nav"></div>
+
+    <!-- Main Content Area -->
+    <main>
+        <!-- 1. Post List View -->
+        <section id="view-list" class="view-section active">
+            <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="current-gallery-title">갤러리 이름</h2>
+                <div>
+                    <button class="btn btn-outline" onclick="openCreateGalleryModal()">+ 갤러리 생성</button>
+                    <button class="btn btn-primary" onclick="showWriteForm()">✏️ 글쓰기</button>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 0;">
+                <table class="post-list">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">번호</th>
+                            <th>제목</th>
+                            <th style="width: 100px;">작성자</th>
+                            <th style="width: 70px;" class="hide-mobile">날짜</th>
+                            <th style="width: 50px;">조회</th>
+                            <th style="width: 50px;">추천</th>
+                        </tr>
+                    </thead>
+                    <tbody id="post-list-body"></tbody>
+                </table>
+                <div id="infinite-scroll-trigger" class="loading-trigger">
+                    스크롤을 내리면 글을 더 불러옵니다...
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Write/Edit Form View -->
+        <section id="view-write" class="view-section">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 id="write-form-title">게시물 작성</h3>
+                    <span id="autosave-status-text" class="autosave-status"></span>
+                </div>
+                <form id="post-form" onsubmit="handlePostSubmit(event)">
+                    <input type="hidden" id="edit-post-id">
+                    
+                    <div class="form-group" style="background-color: rgba(139, 92, 246, 0.1); padding: 10px; border-radius: 6px; margin-top: 10px;">
+                        <label style="color: var(--admin-color);">⚙️ 관리자 전용 옵션</label>
+                        <label style="font-weight: normal; cursor: pointer;">
+                            <input type="checkbox" id="post-is-pinned"> 📌 게시글 상단 고정 (제목에 『공지』 입력 시 공지 알림 자동 발송)
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="post-title">제목</label>
+                        <input type="text" id="post-title" class="form-control" required placeholder="제목을 입력하세요" oninput="triggerAutoSave()">
+                    </div>
+                    <div class="form-group">
+                        <label for="post-content">내용</label>
+                        <textarea id="post-content" class="form-control" required placeholder="내용을 작성하세요" oninput="triggerAutoSave()"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="post-image">사진 첨부 (파일 선택 또는 이미지 URL)</label>
+                        <input type="file" id="post-image-file" class="form-control" accept="image/*" onchange="handleImageUpload(event)">
+                        <input type="text" id="post-image-url" class="form-control" placeholder="https://example.com/image.jpg" style="margin-top: 5px;">
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary" onclick="showList()">취소</button>
+                        <button type="submit" class="btn btn-primary">등록</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- 3. Detail View -->
+        <section id="view-detail" class="view-section">
+            <div class="card">
+                <div class="post-detail-header">
+                    <h2 class="post-detail-title" id="detail-title"></h2>
+                    <div class="post-detail-meta">
+                        <span id="detail-author"></span>
+                        <span id="detail-date"></span>
+                        <span>조회 <b id="detail-views">0</b></span>
+                        <span>추천 <b id="detail-likes">0</b></span>
+                    </div>
+                </div>
+
+                <div class="post-detail-content" id="detail-content"></div>
+                <div id="detail-image-container"></div>
+
+                <div class="vote-box">
+                    <button class="btn btn-primary" onclick="votePost(true)">👍 추천 (<span id="detail-like-btn-cnt">0</span>)</button>
+                    <button class="btn btn-secondary" onclick="votePost(false)">👎 비추천 (<span id="detail-dislike-btn-cnt">0</span>)</button>
+                    <button class="btn btn-danger" onclick="reportPost()">🚨 신고</button>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                    <button class="btn btn-secondary" onclick="showList()">목록으로</button>
+                    <div id="post-owner-actions">
+                        <button class="btn btn-outline" onclick="editCurrentPost()">수정</button>
+                        <button class="btn btn-danger" onclick="deleteCurrentPost()">삭제</button>
+                    </div>
+                </div>
+
+                <!-- Comments -->
+                <div class="comments-section">
+                    <h4>댓글</h4>
+                    <div id="comments-list" style="margin: 15px 0;"></div>
+
+                    <div class="form-group" style="margin-top: 15px;">
+                        <textarea id="comment-input" class="form-control" rows="2" placeholder="댓글을 입력하세요..."></textarea>
+                        <button class="btn btn-primary" style="margin-top: 5px; float: right;" onclick="addComment()">댓글 등록</button>
+                        <div style="clear: both;"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- 실시간 알림 토스트 용기 -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modal: Gallery Creation -->
+<div class="modal" id="modal-gallery">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>새 갤러리 생성</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-gallery')">X</button>
+        </div>
+        <div class="form-group">
+            <label>갤러리 이름</label>
+            <input type="text" id="new-gallery-name" class="form-control" placeholder="예: 게임 갤러리">
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="createNewGallery()">생성하기</button>
+    </div>
+</div>
+
+<!-- Modal: Notifications & Mailbox -->
+<div class="modal" id="modal-notification">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🔔 알림 수신함 & ✉️ 이메일 메시지</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-notification')">X</button>
+        </div>
+        <div id="notification-list-container" style="max-height: 350px; overflow-y: auto;"></div>
+    </div>
+</div>
+
+<!-- Modal: Patch Notes (버전 정보) -->
+<div class="modal" id="modal-patchnotes">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>📜 버전 정보 및 패치노트</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-patchnotes')">X</button>
+        </div>
+        <div style="line-height: 1.8; font-size: 0.9rem;">
+            <h4 style="color:var(--primary-color);">v1.2.0 (최신)</h4>
+            <ul style="padding-left: 20px; margin-bottom: 15px;">
+                <li><b>자동 저장</b>: 작성 중 새로고침해도 복구 기능 추가</li>
+                <li><b>휴지통 복원</b>: 삭제된 글을 관리자에서 원복 가능</li>
+                <li><b>무한 스크롤</b>: 게시글 목록에 무한 스크롤 적용</li>
+                <li><b>점검 모드</b>: 관리자 전용 서비스 점검 기능 추가</li>
+            </ul>
+            <h4 style="color:var(--sub-text);">v1.1.0</h4>
+            <ul style="padding-left: 20px; margin-bottom: 15px;">
+                <li>실시간 이메일/알림 수신함 및 토스트 메시지 추가</li>
+                <li>상단 고정 및 공지 기능 확장</li>
+            </ul>
+            <h4 style="color:var(--sub-text);">v1.0.0</h4>
+            <ul style="padding-left: 20px;">
+                <li>커뮤니티 기본 기능 (게시글 작성, 댓글, 추천, 다크모드) 오픈</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Admin Panel -->
+<div class="modal" id="modal-admin">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⚙️ 관리자 페이지</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-admin')">X</button>
+        </div>
+        <div id="admin-auth-sec">
+            <div class="form-group">
+                <label>관리자 비밀번호</label>
+                <input type="password" id="admin-password-input" class="form-control" placeholder="비밀번호 입력">
+            </div>
+            <button class="btn btn-admin" style="width: 100%;" onclick="authenticateAdmin()">인증</button>
+        </div>
+
+        <div id="admin-panel-sec" style="display: none;">
+            <!-- 점검 중 설정 버튼 -->
+            <div style="background-color: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                <h4 style="color: var(--danger-color); margin-bottom: 5px;">🚨 시스템 점검 설정</h4>
+                <p style="font-size: 0.8rem; color: var(--sub-text); margin-bottom: 8px;">
+                    점검중 활성화 시 지정된 관리자(운영자/제작자/『카이』 등) 외 일반 유저 접근을 전면 차단합니다.
+                </p>
+                <button id="maintenance-toggle-btn" class="btn btn-danger" onclick="toggleMaintenanceMode()">
+                    🔒 점검중 버튼 누르기
+                </button>
+            </div>
+
+            <!-- 휴지통 복원 기능 -->
+            <h4 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-top: 15px;">🗑️ 휴지통 (삭제된 게시글 복원)</h4>
+            <div id="admin-trash-list" style="margin: 10px 0; max-height: 120px; overflow-y: auto;"></div>
+
+            <!-- 메시지 발송 기능 -->
+            <h4 style="margin-top: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">✉️ 유저에게 메시지 발송</h4>
+            <div style="margin: 10px 0;" class="form-group">
+                <input type="text" id="msg-target-user" class="form-control" placeholder="수신자 닉네임 ('전체' 입력 시 전체 전송)" style="margin-bottom: 5px;">
+                <input type="text" id="msg-title-input" class="form-control" placeholder="메시지 제목" style="margin-bottom: 5px;">
+                <textarea id="msg-content-input" class="form-control" rows="2" placeholder="메시지 내용"></textarea>
+                <button class="btn btn-primary" style="margin-top: 5px; width: 100%;" onclick="sendAdminMessage()">메시지 발송</button>
+            </div>
+
+            <!-- 신고 목록 -->
+            <h4 style="margin-top: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">🚨 신고 및 블라인드 목록</h4>
+            <div id="admin-reports-list" style="margin: 10px 0; max-height: 120px; overflow-y: auto;"></div>
+
+            <!-- 차단 관리 -->
+            <h4 style="margin-top: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">🚫 유저 차단(벤) 관리</h4>
+            <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <input type="text" id="ban-user-input" class="form-control" placeholder="차단할 닉네임 입력">
+                <button class="btn btn-danger" onclick="banUser()">차단</button>
+            </div>
+            <div id="admin-ban-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- STATE MANAGEMENT & LOCAL STORAGE ---
+    const STORAGE_KEY = 'forum_app_data_v3';
+    const AUTOSAVE_KEY = 'forum_app_autosave_draft';
+    const ADMIN_PW = '카이만세0000';
+    
+    // 점검 모드 시 이용 권한이 있는 관리자 닉네임 목록
+    const ADMIN_NICKNAMES = ['운영자', '제작자', '『카이』', '관리자'];
+
+    let state = {
+        currentUser: { nickname: '유저' + Math.floor(Math.random() * 8999 + 1000), isAnon: false },
+        currentGalleryId: 'free',
+        currentPostId: null,
+        replyTargetCommentId: null,
+        isMaintenance: false, // 점검 상태
+        bannedUsers: [],
+        notifications: [],
+        galleries: [
+            { id: 'free', name: '자유 갤러리' },
+            { id: 'humor', name: '유머 갤러리' }
+        ],
+        posts: []
+    };
+
+    // 무한 스크롤 관련 변수
+    let visiblePostLimit = 10;
+    const POSTS_PER_PAGE = 10;
+
+    function generateSamplePosts() {
+        const samples = [
+            { id: 1, galleryId: 'free', title: '『공지』 커뮤니티 v1.2.0 업데이트 안내', content: '자동저장, 휴지통 복구, 무한스크롤, 패치노트, 점검모드가 통합되었습니다.', author: '운영자', isAnon: false, isPinned: true, date: new Date().toLocaleDateString(), views: 120, likes: 45, dislikes: 0, reports: 0, isBlind: false, isDeleted: false, comments: [] }
+        ];
+        // 무한 스크롤 테스트용 더미 생성
+        for(let i = 2; i <= 25; i++) {
+            samples.push({
+                id: i,
+                galleryId: 'free',
+                title: `테스트 게시글입니다. (${i})`,
+                content: `이것은 ${i}번째 무한 스크롤 테스트용 글 내용입니다.`,
+                author: `유저${i}`,
+                isAnon: false,
+                isPinned: false,
+                date: new Date().toLocaleDateString(),
+                views: Math.floor(Math.random() * 50),
+                likes: Math.floor(Math.random() * 10),
+                dislikes: 0,
+                reports: 0,
+                isBlind: false,
+                isDeleted: false,
+                comments: []
+            });
+        }
+        return samples;
+    }
+
+    function loadState() {
+        const data = localStorage.getItem(STORAGE_KEY);
+        if (data) {
+            try {
+                const parsed = JSON.parse(data);
+                state = { ...state, ...parsed };
+            } catch (e) {
+                console.error("Failed to parse stored state", e);
+            }
+        } else {
+            state.posts = generateSamplePosts();
+            saveState();
+        }
+    }
+
+    function saveState() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    // --- INITIALIZATION ---
+    let uploadedImageBase64 = '';
+    let autoSaveTimer = null;
+
+    window.onload = function() {
+        loadState();
+        checkMaintenance();
+        document.getElementById('user-nickname-display').innerText = state.currentUser.nickname;
+        document.getElementById('anon-toggle').checked = state.currentUser.isAnon;
+        renderGalleries();
+        switchGallery(state.currentGalleryId);
+        updateUnreadNotiBadge();
+        initInfiniteScroll();
+    };
+
+    // --- 점검 모드 체크 ---
+    function checkMaintenance() {
+        const overlay = document.getElementById('maintenance-overlay');
+        if (state.isMaintenance) {
+            const isAllowedUser = ADMIN_NICKNAMES.includes(state.currentUser.nickname);
+            if (!isAllowedUser) {
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+            }
+        } else {
+            overlay.style.display = 'none';
+        }
+    }
+
+    // --- USER MANAGEMENT ---
+    function changeNickname() {
+        const newNick = prompt("사용할 닉네임을 입력하세요:", state.currentUser.nickname);
+        if (newNick && newNick.trim() !== '') {
+            state.currentUser.nickname = newNick.trim();
+            document.getElementById('user-nickname-display').innerText = state.currentUser.nickname;
+            saveState();
+            updateUnreadNotiBadge();
+            checkMaintenance();
+        }
+    }
+
+    function toggleAnonMode(checked) {
+        state.currentUser.isAnon = checked;
+        saveState();
+    }
+
+    // --- UI VIEW SWITCHING ---
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+    }
+
+    function toggleViewMode() {
+        const container = document.getElementById('app-container');
+        if (container.classList.contains('pc-view')) {
+            container.classList.remove('pc-view');
+            container.classList.add('mobile-view');
+        } else {
+            container.classList.remove('mobile-view');
+            container.classList.add('pc-view');
+        }
+    }
+
+    function showSection(sectionId) {
+        document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+        document.getElementById(sectionId).classList.add('active');
+    }
+
+    function showList() {
+        visiblePostLimit = POSTS_PER_PAGE;
+        renderPosts();
+        showSection('view-list');
+    }
+
+    // --- GALLERY MANAGEMENT ---
+    function renderGalleries() {
+        const nav = document.getElementById('gallery-nav');
+        nav.innerHTML = state.galleries.map(g => `
+            <div class="gallery-tab ${g.id === state.currentGalleryId ? 'active' : ''}" onclick="switchGallery('${g.id}')">
+                ${g.name}
+            </div>
+        `).join('');
+    }
+
+    function switchGallery(id) {
+        state.currentGalleryId = id;
+        renderGalleries();
+        const gallery = state.galleries.find(g => g.id === id);
+        document.getElementById('current-gallery-title').innerText = gallery ? gallery.name : '갤러리';
+        showList();
+    }
+
+    function openCreateGalleryModal() {
+        document.getElementById('modal-gallery').classList.add('active');
+    }
+
+    function createNewGallery() {
+        const nameInput = document.getElementById('new-gallery-name');
+        const name = nameInput.value.trim();
+        if (!name) return alert("갤러리 이름을 입력해주세요.");
+
+        const id = 'gal_' + Date.now();
+        state.galleries.push({ id, name });
+        saveState();
+        nameInput.value = '';
+        closeModal('modal-gallery');
+        switchGallery(id);
+    }
+
+    // --- POST LIST & INFINITE SCROLL ---
+    function renderPosts() {
+        const tbody = document.getElementById('post-list-body');
+        // 삭제되지 않은(isDeleted != true) 게시글만 필터링
+        const posts = state.posts.filter(p => p.galleryId === state.currentGalleryId && !p.isDeleted);
+
+        if (posts.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px;">게시물이 없습니다. 첫 글을 남겨보세요!</td></tr>`;
+            document.getElementById('infinite-scroll-trigger').style.display = 'none';
+            return;
+        }
+
+        const sortedPosts = [...posts].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+        const slicedPosts = sortedPosts.slice(0, visiblePostLimit);
+
+        tbody.innerHTML = slicedPosts.map(p => {
+            const authorText = p.isAnon ? '익명' : p.author;
+            const blindText = p.isBlind ? '<span class="badge badge-blind">블라인드</span>' : '';
+            const pinnedBadge = p.isPinned ? '<span class="badge badge-pinned">📌 고정</span>' : '';
+            const noticeBadge = p.title.includes('『공지』') ? '<span class="badge badge-notice">공지</span>' : '';
+            const titleDisplay = p.isBlind ? '<i>[신고로 인해 블라인드 처리된 게시물입니다.]</i>' : p.title;
+
+            return `
+                <tr class="${p.isPinned ? 'pinned-row' : ''}">
+                    <td>${p.isPinned ? '📌' : p.id}</td>
+                    <td class="post-title-cell" onclick="openPost(${p.id})">
+                        ${pinnedBadge} ${noticeBadge} ${titleDisplay} ${blindText}
+                    </td>
+                    <td>${authorText}</td>
+                    <td class="hide-mobile">${p.date}</td>
+                    <td>${p.views}</td>
+                    <td>${p.likes}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const trigger = document.getElementById('infinite-scroll-trigger');
+        if (slicedPosts.length >= sortedPosts.length) {
+            trigger.innerText = '모든 글을 불러왔습니다.';
+        } else {
+            trigger.innerText = '스크롤을 내리면 글을 더 불러옵니다...';
+            trigger.style.display = 'block';
+        }
+    }
+
+    function initInfiniteScroll() {
+        window.addEventListener('scroll', () => {
+            const viewList = document.getElementById('view-list');
+            if (!viewList.classList.contains('active')) return;
+
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 150) {
+                const totalPostsCount = state.posts.filter(p => p.galleryId === state.currentGalleryId && !p.isDeleted).length;
+                if (visiblePostLimit < totalPostsCount) {
+                    visiblePostLimit += POSTS_PER_PAGE;
+                    renderPosts();
+                }
+            }
+        });
+    }
+
+    // --- AUTO SAVE & WRITE FORM ---
+    function triggerAutoSave() {
+        const editId = document.getElementById('edit-post-id').value;
+        if (editId) return; // 수정 모드 시 자동 저장 스킵
+
+        clearTimeout(autoSaveTimer);
+        const statusText = document.getElementById('autosave-status-text');
+        statusText.innerText = '입력 중...';
+
+        autoSaveTimer = setTimeout(() => {
+            const draft = {
+                title: document.getElementById('post-title').value,
+                content: document.getElementById('post-content').value,
+                galleryId: state.currentGalleryId,
+                savedAt: new Date().toLocaleTimeString()
+            };
+            localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(draft));
+            statusText.innerText = `자동 저장됨 (${draft.savedAt})`;
+        }, 1000);
+    }
+
+    function checkAndRestoreDraft() {
+        const draftData = localStorage.getItem(AUTOSAVE_KEY);
+        if (draftData) {
+            try {
+                const draft = JSON.parse(draftData);
+                if (draft.title || draft.content) {
+                    if (confirm(`임시 저장된 글이 있습니다. (${draft.savedAt} 저장)\n복구하시겠습니까?`)) {
+                        document.getElementById('post-title').value = draft.title || '';
+                        document.getElementById('post-content').value = draft.content || '';
+                    } else {
+                        localStorage.removeItem(AUTOSAVE_KEY);
+                    }
+                }
+            } catch (e) {}
+        }
+    }
+
+    function showWriteForm(editId = null) {
+        if (state.bannedUsers.includes(state.currentUser.nickname)) {
+            return alert("당신은 차단(벤)되었습니다.");
+        }
+
+        document.getElementById('edit-post-id').value = editId || '';
+        document.getElementById('write-form-title').innerText = editId ? '게시물 수정' : '게시물 작성';
+        document.getElementById('autosave-status-text').innerText = '';
+
+        if (editId) {
+            const post = state.posts.find(p => p.id === editId);
+            document.getElementById('post-title').value = post.title;
+            document.getElementById('post-content').value = post.content;
+            document.getElementById('post-image-url').value = post.imageUrl || '';
+            document.getElementById('post-is-pinned').checked = !!post.isPinned;
+        } else {
+            document.getElementById('post-form').reset();
+            uploadedImageBase64 = '';
+            checkAndRestoreDraft();
+        }
+
+        showSection('view-write');
+    }
+
+    function handleImageUpload(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                uploadedImageBase64 = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function handlePostSubmit(e) {
+        e.preventDefault();
+        const editId = document.getElementById('edit-post-id').value;
+        const title = document.getElementById('post-title').value;
+        const content = document.getElementById('post-content').value;
+        const urlImg = document.getElementById('post-image-url').value;
+        const isPinned = document.getElementById('post-is-pinned').checked;
+        const finalImg = uploadedImageBase64 || urlImg;
+
+        if (isPinned) {
+            const authPw = prompt("게시글 고정을 위해 관리자 비밀번호를 입력하세요:");
+            if (authPw !== ADMIN_PW) {
+                alert("관리자 비밀번호가 올바르지 않습니다.");
+                return;
+            }
+        }
+
+        if (editId) {
+            const post = state.posts.find(p => p.id === parseInt(editId));
+            post.title = title;
+            post.content = content;
+            post.imageUrl = finalImg;
+            post.isPinned = isPinned;
+        } else {
+            const newPost = {
+                id: Date.now(),
+                galleryId: state.currentGalleryId,
+                title,
+                content,
+                author: state.currentUser.nickname,
+                isAnon: state.currentUser.isAnon,
+                isPinned,
+                date: new Date().toLocaleDateString(),
+                views: 0,
+                likes: 0,
+                dislikes: 0,
+                reports: 0,
+                isBlind: false,
+                isDeleted: false,
+                imageUrl: finalImg,
+                comments: []
+            };
+            state.posts.unshift(newPost);
+            localStorage.removeItem(AUTOSAVE_KEY); // 작성 완료 시 임시저장 데이터 삭제
+
+            if (title.includes('『공지』')) {
+                addNotification({
+                    targetUser: '전체',
+                    title: '📢 새로운 공지사항이 등록되었습니다!',
+                    content: `[공지] ${title}`,
+                    type: 'notice'
+                });
+            }
+        }
+
+        saveState();
+        showList();
+    }
+
+    function openPost(id) {
+        const post = state.posts.find(p => p.id === id);
+        if (!post) return;
+
+        state.currentPostId = id;
+        post.views++;
+        saveState();
+
+        document.getElementById('detail-title').innerText = post.isBlind ? '[블라인드 처리됨]' : post.title;
+        document.getElementById('detail-author').innerText = '작성자: ' + (post.isAnon ? '익명' : post.author);
+        document.getElementById('detail-date').innerText = '작성일: ' + post.date;
+        document.getElementById('detail-views').innerText = post.views;
+        document.getElementById('detail-likes').innerText = post.likes;
+        document.getElementById('detail-like-btn-cnt').innerText = post.likes;
+        document.getElementById('detail-dislike-btn-cnt').innerText = post.dislikes;
+        document.getElementById('detail-content').innerText = post.isBlind ? '신고 누적으로 블라인드 처리된 내용입니다.' : post.content;
+
+        const imgContainer = document.getElementById('detail-image-container');
+        if (post.imageUrl && !post.isBlind) {
+            imgContainer.innerHTML = `<img src="${post.imageUrl}" class="post-detail-image">`;
+        } else {
+            imgContainer.innerHTML = '';
+        }
+
+        renderComments(post);
+        showSection('view-detail');
+    }
+
+    function votePost(isLike) {
+        const post = state.posts.find(p => p.id === state.currentPostId);
+        if (!post) return;
+
+        if (isLike) post.likes++;
+        else post.dislikes++;
+
+        saveState();
+        openPost(state.currentPostId);
+    }
+
+    function reportPost() {
+        const post = state.posts.find(p => p.id === state.currentPostId);
+        if (!post) return;
+
+        post.reports++;
+        if (post.reports >= 3) {
+            post.isBlind = true;
+            alert("신고가 누적되어 블라인드 처리되었습니다.");
+        } else {
+            alert("신고가 접수되었습니다.");
+        }
+
+        saveState();
+        openPost(state.currentPostId);
+    }
+
+    function editCurrentPost() {
+        showWriteForm(state.currentPostId);
+    }
+
+    // 삭제 시 휴지통 이동 처리 (isDeleted: true)
+    function deleteCurrentPost() {
+        if (!confirm("게시글을 삭제하시겠습니까? (삭제된 글은 관리자 휴지통에서 복원할 수 있습니다)")) return;
+        const post = state.posts.find(p => p.id === state.currentPostId);
+        if (post) {
+            post.isDeleted = true;
+            saveState();
+            alert("게시글이 휴지통으로 이동되었습니다.");
+            showList();
+        }
+    }
+
+    // --- COMMENTS ---
+    function renderComments(post) {
+        const container = document.getElementById('comments-list');
+        if (!post.comments || post.comments.length === 0) {
+            container.innerHTML = '<p style="color: var(--sub-text); font-size:0.85rem;">댓글이 없습니다.</p>';
+            return;
+        }
+
+        container.innerHTML = post.comments.map(c => `
+            <div class="comment-item ${c.parentId ? 'reply' : ''}">
+                <div class="comment-meta">
+                    <b>${c.isAnon ? '익명' : c.author}</b>
+                    <span>${c.date}</span>
+                </div>
+                <div>${c.content}</div>
+                ${!c.parentId ? `<button class="btn btn-outline" style="padding:2px 6px; font-size:0.7rem; margin-top:4px;" onclick="setReplyTarget(${c.id})">답글 달기</button>` : ''}
+            </div>
+        `).join('');
+    }
+
+    function setReplyTarget(commentId) {
+        state.replyTargetCommentId = commentId;
+        const input = document.getElementById('comment-input');
+        input.placeholder = "답글을 작성 중입니다...";
+        input.focus();
+    }
+
+    function addComment() {
+        if (state.bannedUsers.includes(state.currentUser.nickname)) {
+            return alert("당신은 차단(벤)된 상태입니다.");
+        }
+
+        const input = document.getElementById('comment-input');
+        const content = input.value.trim();
+        if (!content) return;
+
+        const post = state.posts.find(p => p.id === state.currentPostId);
+        const newComment = {
+            id: Date.now(),
+            author: state.currentUser.nickname,
+            isAnon: state.currentUser.isAnon,
+            content,
+            date: new Date().toLocaleDateString(),
+            parentId: state.replyTargetCommentId || null
+        };
+
+        post.comments.push(newComment);
+        saveState();
+
+        input.value = '';
+        state.replyTargetCommentId = null;
+        input.placeholder = "댓글을 입력하세요...";
+        renderComments(post);
+    }
+
+    // --- NOTIFICATION & MAILBOX ---
+    function addNotification({ targetUser, title, content, type = 'msg' }) {
+        const noti = {
+            id: Date.now(),
+            targetUser,
+            title,
+            content,
+            isRead: false,
+            date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            type
+        };
+
+        state.notifications.unshift(noti);
+        saveState();
+        showToast(title, content, type);
+        updateUnreadNotiBadge();
+    }
+
+    function showToast(title, content, type) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type === 'notice' ? 'notice-toast' : ''}`;
+        toast.innerHTML = `<b>${title}</b><br>${content}`;
+        
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    }
+
+    function updateUnreadNotiBadge() {
+        const unreadList = state.notifications.filter(n => 
+            !n.isRead && (n.targetUser === '전체' || n.targetUser === state.currentUser.nickname)
+        );
+        const badge = document.getElementById('unread-noti-count');
+        if (unreadList.length > 0) {
+            badge.innerText = unreadList.length;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    function openNotificationModal() {
+        renderNotificationList();
+        document.getElementById('modal-notification').classList.add('active');
+    }
+
+    function openPatchNotesModal() {
+        document.getElementById('modal-patchnotes').classList.add('active');
+    }
+
+    function renderNotificationList() {
+        const container = document.getElementById('notification-list-container');
+        const myNotis = state.notifications.filter(n => 
+            n.targetUser === '전체' || n.targetUser === state.currentUser.nickname
+        );
+
+        if (myNotis.length === 0) {
+            container.innerHTML = '<p style="padding:15px; text-align:center; color:var(--sub-text);">수신된 메시지나 알림이 없습니다.</p>';
+            return;
+        }
+
+        container.innerHTML = myNotis.map(n => `
+            <div class="noti-item ${n.isRead ? '' : 'unread'}" onclick="markNotiRead(${n.id})">
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <small style="color:var(--admin-color);">[${n.targetUser === '전체' ? '전체알림' : '개별메시지'}]</small>
+                    <small style="color:var(--sub-text);">${n.date}</small>
+                </div>
+                <div style="font-weight:bold; margin-bottom:2px;">${n.title}</div>
+                <div>${n.content}</div>
+            </div>
+        `).join('');
+    }
+
+    function markNotiRead(id) {
+        const noti = state.notifications.find(n => n.id === id);
+        if (noti) {
+            noti.isRead = true;
+            saveState();
+            updateUnreadNotiBadge();
+            renderNotificationList();
+        }
+    }
+
+    function sendAdminMessage() {
+        const targetUser = document.getElementById('msg-target-user').value.trim();
+        const title = document.getElementById('msg-title-input').value.trim();
+        const content = document.getElementById('msg-content-input').value.trim();
+
+        if (!targetUser || !title || !content) {
+            return alert("수신자, 제목, 내용을 모두 입력해주세요.");
+        }
+
+        addNotification({
+            targetUser,
+            title: `✉️ ${title}`,
+            content,
+            type: 'msg'
+        });
+
+        alert(`'${targetUser}' 유저에게 메시지를 발송했습니다.`);
+        document.getElementById('msg-title-input').value = '';
+        document.getElementById('msg-content-input').value = '';
+    }
+
+    // --- ADMIN PANEL & TRASH & MAINTENANCE ---
+    function openAdminModal() {
+        document.getElementById('modal-admin').classList.add('active');
+    }
+
+    function authenticateAdmin() {
+        const pw = document.getElementById('admin-password-input').value;
+        if (pw === ADMIN_PW) {
+            document.getElementById('admin-auth-sec').style.display = 'none';
+            document.getElementById('admin-panel-sec').style.display = 'block';
+            renderAdminPanel();
+        } else {
+            alert("비밀번호가 일치하지 않습니다.");
+        }
+    }
+
+    function toggleMaintenanceMode() {
+        state.isMaintenance = !state.isMaintenance;
+        saveState();
+        renderAdminPanel();
+        checkMaintenance();
+        alert(`점검 모드가 ${state.isMaintenance ? '활성화' : '해제'} 되었습니다.`);
+    }
+
+    function renderAdminPanel() {
+        // 점검 버튼 텍스트 업데이트
+        const maintBtn = document.getElementById('maintenance-toggle-btn');
+        maintBtn.innerText = state.isMaintenance ? '🔓 점검모드 해제하기' : '🔒 점검중 버튼 누르기';
+        maintBtn.className = state.isMaintenance ? 'btn btn-success' : 'btn btn-danger';
+
+        // 휴지통 리스트
+        const trashList = document.getElementById('admin-trash-list');
+        const deletedPosts = state.posts.filter(p => p.isDeleted);
+
+        if (deletedPosts.length === 0) {
+            trashList.innerHTML = '<p style="font-size:0.85rem; color: var(--sub-text);">휴지통이 비어있습니다.</p>';
+        } else {
+            trashList.innerHTML = deletedPosts.map(p => `
+                <div style="border-bottom:1px solid var(--border-color); padding: 6px 0; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                    <div><b>[삭제됨]</b> ${p.title} (${p.author})</div>
+                    <div>
+                        <button class="btn btn-success" style="padding:2px 6px; font-size:0.75rem;" onclick="restorePost(${p.id})">복원</button>
+                        <button class="btn btn-danger" style="padding:2px 6px; font-size:0.75rem;" onclick="permanentlyDeletePost(${p.id})">영구삭제</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 신고 리스트
+        const repList = document.getElementById('admin-reports-list');
+        const reportedPosts = state.posts.filter(p => (p.reports > 0 || p.isBlind) && !p.isDeleted);
+
+        if (reportedPosts.length === 0) {
+            repList.innerHTML = '<p style="font-size:0.85rem; color: var(--sub-text);">신고 또는 블라인드글이 없습니다.</p>';
+        } else {
+            repList.innerHTML = reportedPosts.map(p => `
+                <div style="border-bottom:1px solid var(--border-color); padding: 6px 0; display:flex; justify-content:space-between; align-items:center; font-size:0.85rem;">
+                    <div><b>[${p.id}]</b> ${p.title} (신고:${p.reports})</div>
+                    <div>
+                        <button class="btn btn-success" style="padding:2px 6px; font-size:0.75rem;" onclick="unblindPost(${p.id})">해제</button>
+                        <button class="btn btn-danger" style="padding:2px 6px; font-size:0.75rem;" onclick="adminDeletePost(${p.id})">삭제</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 차단 유저 리스트
+        const banList = document.getElementById('admin-ban-list');
+        banList.innerHTML = state.bannedUsers.map(u => `
+            <span class="badge badge-blind" style="display:inline-flex; align-items:center; gap:4px; margin-right:5px; padding:4px 8px;">
+                ${u} <a href="#" style="color:white; font-weight:bold; text-decoration:none;" onclick="unbanUser('${u}')">×</a>
+            </span>
+        `).join('');
+    }
+
+    function restorePost(id) {
+        const post = state.posts.find(p => p.id === id);
+        if (post) {
+            post.isDeleted = false;
+            saveState();
+            renderAdminPanel();
+            showList();
+        }
+    }
+
+    function permanentlyDeletePost(id) {
+        if (!confirm("영구 삭제 시 복구할 수 없습니다. 정말 삭제하시겠습니까?")) return;
+        state.posts = state.posts.filter(p => p.id !== id);
+        saveState();
+        renderAdminPanel();
+    }
+
+    function unblindPost(id) {
+        const post = state.posts.find(p => p.id === id);
+        if (post) {
+            post.isBlind = false;
+            post.reports = 0;
+            saveState();
+            renderAdminPanel();
+            if (state.currentPostId === id) openPost(id);
+        }
+    }
+
+    function adminDeletePost(id) {
+        const post = state.posts.find(p => p.id === id);
+        if (post) {
+            post.isDeleted = true;
+            saveState();
+            renderAdminPanel();
+            showList();
+        }
+    }
+
+    function banUser() {
+        const nick = document.getElementById('ban-user-input').value.trim();
+        if (nick && !state.bannedUsers.includes(nick)) {
+            state.bannedUsers.push(nick);
+            saveState();
+            document.getElementById('ban-user-input').value = '';
+            renderAdminPanel();
+        }
+    }
+
+    function unbanUser(nick) {
+        state.bannedUsers = state.bannedUsers.filter(u => u !== nick);
+        saveState();
+        renderAdminPanel();
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.remove('active');
+    }
+</script>
+</body>
+</html>
+
