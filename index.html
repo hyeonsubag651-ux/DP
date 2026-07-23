@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>커뮤니티 웹앱 v1.2.1</title>
+    <title>커뮤니티 웹앱</title>
     <style>
         :root {
             --bg-color: #f4f6f9;
@@ -244,6 +244,7 @@
         .badge-blind { background-color: var(--danger-color); color: white; }
         .badge-notice { background-color: var(--admin-color); color: white; }
         .badge-pinned { background-color: #eab308; color: black; }
+        .badge-admin-role { background-color: var(--admin-color); color: white; border-radius: 10px; font-size:0.7rem; padding: 1px 5px; }
 
         /* Post View */
         .post-detail-header {
@@ -439,6 +440,39 @@
             color: var(--sub-text);
         }
 
+        /* 📻 실시간 방송 라디오 팝업 전용 스타일 */
+        #broadcast-popup {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 450px;
+            background-color: var(--card-bg);
+            border: 3px solid var(--admin-color);
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100000;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from { transform: translate(-50%, -40%) scale(0.8); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .broadcast-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--admin-color);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            font-weight: bold;
+            color: var(--admin-color);
+        }
+
         @media (max-width: 600px) {
             .hide-mobile { display: none; }
             .post-list th, .post-list td { padding: 8px 4px; }
@@ -452,13 +486,31 @@
     죄송합니다! 서비스에 차질이 생겨 점검중 입니다!
 </div>
 
+<!-- 📻 커뮤니티 운영자 실시간 방송 라디오 팝업 -->
+<div id="broadcast-popup">
+    <div class="broadcast-header">
+        <span>📻 [실시간] 커뮤니티 운영자 방송</span>
+        <button class="btn btn-outline" style="padding:2px 8px; font-weight:bold;" onclick="closeBroadcastPopup()">X</button>
+    </div>
+    <div id="broadcast-content" style="font-size: 1rem; line-height: 1.5; white-space: pre-wrap; word-break: break-all; margin-bottom: 15px;">
+        운영자 방송 내용이 여기에 표시됩니다.
+    </div>
+    <div style="text-align: right;">
+        <button class="btn btn-admin" onclick="closeBroadcastPopup()">닫기 (X)</button>
+    </div>
+</div>
+
 <div id="app-container" class="pc-view">
     <!-- Header -->
     <header>
         <div class="header-title" onclick="switchGallery(currentGalleryId)">
-            ⚡ 커뮤니티 <span class="version-badge" onclick="event.stopPropagation(); openPatchNotesModal();">v1.2.1</span>
+            ⚡ 커뮤니티 <span class="version-badge" id="app-version-badge" onclick="event.stopPropagation(); openPatchNotesModal();">v1.4.0</span>
         </div>
         <div class="header-controls">
+            <!-- 새로고침 버튼 -->
+            <button class="btn btn-outline" onclick="refreshApp()">🔄 새로고침</button>
+            <!-- ☁️ 클라우드 백업 버튼 -->
+            <button class="btn btn-success" onclick="openCloudBackupModal()">☁️ 클라우드 백업</button>
             <div class="notification-btn-wrap">
                 <button class="btn btn-outline" onclick="openNotificationModal()">🔔 알림 / ✉️ 메시지</button>
                 <span class="noti-badge-count" id="unread-noti-count" style="display: none;">0</span>
@@ -475,7 +527,7 @@
             <label><input type="checkbox" id="anon-toggle" onchange="toggleAnonMode(this.checked)"> 익명으로 활동</label>
         </div>
         <div>
-            <span>현재 닉네임: <b id="user-nickname-display">유저1</b></span>
+            <span>현재 닉네임: <b id="user-nickname-display">유저1</b> <span id="user-admin-badge" class="badge badge-admin-role" style="display:none;">관리자</span></span>
             <button class="btn btn-outline" style="padding:2px 6px; font-size:0.75rem;" onclick="changeNickname()">변경</button>
         </div>
     </div>
@@ -545,6 +597,23 @@
                         <input type="file" id="post-image-file" class="form-control" accept="image/*" onchange="handleImageUpload(event)">
                         <input type="text" id="post-image-url" class="form-control" placeholder="https://example.com/image.jpg" style="margin-top: 5px;">
                     </div>
+
+                    <!-- 📊 투표 첨부 설정 추가 구역 -->
+                    <div class="form-group" style="background-color: var(--bg-color); padding: 12px; border-radius: 6px;">
+                        <label style="cursor: pointer; margin-bottom: 0;">
+                            <input type="checkbox" id="post-enable-poll" onchange="togglePollInput(this.checked)"> 📊 이 글에 투표(Poll) 첨부하기
+                        </label>
+                        
+                        <div id="poll-input-container" style="display: none; margin-top: 10px;">
+                            <input type="text" id="poll-title-input" class="form-control" placeholder="투표 주제 (예: 최애 캐릭터는?)" style="margin-bottom: 8px;">
+                            <div id="poll-options-list">
+                                <input type="text" class="form-control poll-option-item" placeholder="선택지 1" style="margin-bottom: 5px;">
+                                <input type="text" class="form-control poll-option-item" placeholder="선택지 2" style="margin-bottom: 5px;">
+                            </div>
+                            <button type="button" class="btn btn-outline" style="font-size: 0.75rem; margin-top: 5px;" onclick="addPollOptionInput()">+ 선택지 추가</button>
+                        </div>
+                    </div>
+
                     <div style="display: flex; gap: 10px; justify-content: flex-end;">
                         <button type="button" class="btn btn-secondary" onclick="showList()">취소</button>
                         <button type="submit" class="btn btn-primary">등록</button>
@@ -568,6 +637,13 @@
 
                 <div class="post-detail-content" id="detail-content"></div>
                 <div id="detail-image-container"></div>
+
+                <!-- 📊 상세보기 내 투표 출력 구역 -->
+                <div id="detail-poll-container" style="display: none; margin: 20px 0; padding: 15px; border: 1px dashed var(--primary-color); border-radius: 8px; background-color: var(--card-bg);">
+                    <h4 id="detail-poll-title" style="margin-bottom: 12px; color: var(--primary-color);">📊 투표</h4>
+                    <div id="detail-poll-options"></div>
+                    <button id="poll-submit-btn" class="btn btn-primary" style="margin-top: 10px; width: 100%;" onclick="submitPollVote()">투표 제출하기</button>
+                </div>
 
                 <div class="vote-box">
                     <button class="btn btn-primary" onclick="votePost(true)">👍 추천 (<span id="detail-like-btn-cnt">0</span>)</button>
@@ -602,6 +678,47 @@
 <!-- 실시간 알림 토스트 용기 -->
 <div class="toast-container" id="toast-container"></div>
 
+<!-- Modal: Cloud Backup & Restore (클라우드 백업 모달) -->
+<div class="modal" id="modal-cloud-backup">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>☁️ 클라우드 백업 및 데이터 동기화</h3>
+            <button class="btn btn-outline" onclick="closeModal('modal-cloud-backup')">X</button>
+        </div>
+        <div style="font-size: 0.9rem; line-height: 1.6;">
+            <p style="color: var(--sub-text); margin-bottom: 15px;">
+                현재 커뮤니티의 모든 데이터(게시글, 댓글, 알림, 관리자 설정 등)를 파일로 백업하거나 클라우드 스냅샷을 생성할 수 있습니다.
+            </p>
+
+            <div style="background-color: var(--bg-color); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                <h4 style="margin-bottom: 8px; color: var(--primary-color);">💾 파일 내보내기 / 가져오기</h4>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <button class="btn btn-primary" style="flex: 1;" onclick="exportDataJSON()">📥 JSON 파일 내보내기</button>
+                    <label class="btn btn-outline" style="flex: 1; text-align: center; justify-content: center; cursor: pointer;">
+                        📤 JSON 파일 가져오기
+                        <input type="file" id="import-json-file" accept=".json" style="display: none;" onchange="importDataJSON(event)">
+                    </label>
+                </div>
+                <small style="color: var(--sub-text);">.json 파일로 내보낸 백업본을 언제든 다시 업로드하여 순식간에 데이터를 복원할 수 있습니다.</small>
+            </div>
+
+            <div style="background-color: var(--bg-color); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <h4 style="margin-bottom: 8px; color: var(--success-color);">☁️ 로컬 스냅샷 & 클라우드 동기화</h4>
+                <p style="font-size: 0.8rem; color: var(--sub-text); margin-bottom: 10px;">
+                    브라우저 내 안전 구역에 백업 스냅샷을 즉시 저장하거나, 복원합니다.
+                </p>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-success" style="flex: 1;" onclick="createCloudSnapshot()">⚡ 백업 스냅샷 생성</button>
+                    <button class="btn btn-secondary" style="flex: 1;" onclick="restoreCloudSnapshot()">🔄 스냅샷으로 복원</button>
+                </div>
+                <div id="snapshot-status-info" style="font-size: 0.75rem; margin-top: 8px; color: var(--sub-text);">
+                    마지막 스냅샷: 없음
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal: Gallery Creation -->
 <div class="modal" id="modal-gallery">
     <div class="modal-content">
@@ -635,12 +752,8 @@
             <h3>📜 버전 정보 및 패치노트</h3>
             <button class="btn btn-outline" onclick="closeModal('modal-patchnotes')">X</button>
         </div>
-        <div style="line-height: 1.8; font-size: 0.9rem;">
-            <h4 style="color:var(--primary-color);">v1.2.1 (최신)</h4>
-            <ul style="padding-left: 20px; margin-bottom: 15px;">
-                <li><b>점검 모드 비상 탈출 기능</b>: 화면 5회 터치 시 비상 해제 모드 작동</li>
-                <li>웹앱(PWA) 전용 탈출 루틴 포함</li>
-            </ul>
+        <div id="patchnotes-modal-body" style="line-height: 1.8; font-size: 0.9rem;">
+            <!-- 실시간 동적 출력 구역 -->
         </div>
     </div>
 </div>
@@ -661,11 +774,44 @@
         </div>
 
         <div id="admin-panel-sec" style="display: none;">
+            <!-- 📜 패치노트 실시간 수정 관리 기능 -->
+            <h4 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-top: 10px;">📜 실시간 패치노트 수정 및 관리</h4>
+            <div style="margin: 10px 0;">
+                <div class="form-group">
+                    <label>버전 명칭 (예: v1.4.0)</label>
+                    <input type="text" id="admin-patch-version" class="form-control" placeholder="v1.4.0">
+                </div>
+                <div class="form-group">
+                    <label>패치노트 내용 (줄바꿈 구분 가능)</label>
+                    <textarea id="admin-patch-content" class="form-control" rows="4" placeholder="• 새로운 기능이 추가되었습니다.&#10;• 버그가 수정되었습니다."></textarea>
+                </div>
+                <button class="btn btn-admin" style="width: 100%; margin-bottom: 15px;" onclick="savePatchNotesFromAdmin()">💾 패치노트 실시간 업데이트</button>
+            </div>
+
+            <!-- 👑 1. 관리자 임명 기능 -->
+            <h4 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-top: 20px;">👑 관리자 / 운영자 임명</h4>
+            <div style="margin: 10px 0;">
+                <div style="display: flex; gap: 5px; margin-bottom: 8px;">
+                    <input type="text" id="add-admin-input" class="form-control" placeholder="임명할 유저 닉네임 입력">
+                    <button class="btn btn-admin" onclick="addAdminRole()">임명</button>
+                </div>
+                <div id="admin-role-list" style="font-size:0.85rem; color: var(--sub-text);">
+                    현재 관리자: 목록을 불러오는 중...
+                </div>
+            </div>
+
+            <!-- 📻 운영자 실시간 방송 라디오 발송 -->
+            <h4 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-top: 20px;">📻 커뮤니티 운영자 실시간 방송 라디오</h4>
+            <div style="margin: 10px 0;">
+                <textarea id="broadcast-msg-input" class="form-control" rows="2" placeholder="실시간 팝업으로 전체 유저에게 송출할 방송글을 작성하세요..."></textarea>
+                <button class="btn btn-admin" style="width: 100%; margin-top: 5px;" onclick="sendBroadcastMessage()">📻 실시간 방송 팝업 전송</button>
+            </div>
+
             <!-- 점검 중 설정 버튼 -->
-            <div style="background-color: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+            <div style="background-color: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 6px; margin-top: 20px; margin-bottom: 15px;">
                 <h4 style="color: var(--danger-color); margin-bottom: 5px;">🚨 시스템 점검 설정</h4>
                 <p style="font-size: 0.8rem; color: var(--sub-text); margin-bottom: 8px;">
-                    점검중 활성화 시 지정된 키워드가 포함된 닉네임 외 일반 유저 접근을 전면 차단합니다.
+                    점검중 활성화 시 지정된 키워드 또는 관리자로 임명된 유저 외 일반 유저 접근을 전면 차단합니다.
                 </p>
                 <button id="maintenance-toggle-btn" class="btn btn-danger" onclick="toggleMaintenanceMode()">
                     🔒 점검중 버튼 누르기
@@ -702,11 +848,12 @@
 
 <script>
     // --- STATE MANAGEMENT & LOCAL STORAGE ---
-    const STORAGE_KEY = 'forum_app_data_v3';
+    const STORAGE_KEY = 'forum_app_data_v4';
+    const SNAPSHOT_KEY = 'forum_app_cloud_snapshot';
     const AUTOSAVE_KEY = 'forum_app_autosave_draft';
     const ADMIN_PW = '카이만세0000';
     
-    // 점검 모드 예외 키워드 목록 (닉네임에 하나라도 포함되면 우회 가능)
+    // 점검 모드 기본 예외 키워드 목록
     const ADMIN_KEYWORDS = ['운영자', '제작자', '카이', '개발자', '관리자'];
 
     let state = {
@@ -715,6 +862,12 @@
         currentPostId: null,
         replyTargetCommentId: null,
         isMaintenance: false,
+        adminList: ['운영자', '카이'],
+        activeBroadcast: null,
+        patchNotes: {
+            version: 'v1.4.0',
+            content: '• 클라우드 백업 및 JSON 파일 복원 기능 추가\n• 실시간 패치노트 관리 기능 구현'
+        },
         bannedUsers: [],
         notifications: [],
         galleries: [
@@ -731,7 +884,31 @@
 
     function generateSamplePosts() {
         const samples = [
-            { id: 1, galleryId: 'free', title: '『공지』 커뮤니티 v1.2.1 업데이트 안내', content: '점검 모드 비상 탈출 이스터 에그가 추가되었습니다.', author: '운영자', isAnon: false, isPinned: true, date: new Date().toLocaleDateString(), views: 120, likes: 45, dislikes: 0, reports: 0, isBlind: false, isDeleted: false, comments: [] }
+            { 
+                id: 1, 
+                galleryId: 'free', 
+                title: '『공지』 커뮤니티 v1.4.0 업데이트 안내', 
+                content: '클라우드 백업 및 JSON 파일 복원 기능이 추가되었습니다.', 
+                author: '운영자', 
+                isAnon: false, 
+                isPinned: true, 
+                date: new Date().toLocaleDateString(), 
+                views: 150, 
+                likes: 50, 
+                dislikes: 0, 
+                reports: 0, 
+                isBlind: false, 
+                isDeleted: false, 
+                comments: [],
+                poll: {
+                    title: "새로 추가된 백업 기능은 어떠신가요?",
+                    options: [
+                        { id: 0, text: "완전 유용해요! 👍", votes: 20 },
+                        { id: 1, text: "데이터 보관이 편리해졌습니다 👌", votes: 12 }
+                    ],
+                    votedUsers: []
+                }
+            }
         ];
         for(let i = 2; i <= 25; i++) {
             samples.push({
@@ -780,21 +957,184 @@
     window.onload = function() {
         loadState();
         checkMaintenance();
-        document.getElementById('user-nickname-display').innerText = state.currentUser.nickname;
-        document.getElementById('anon-toggle').checked = state.currentUser.isAnon;
+        updateUserUI();
         renderGalleries();
         switchGallery(state.currentGalleryId);
         updateUnreadNotiBadge();
         initInfiniteScroll();
+        checkActiveBroadcast();
+        updateSnapshotStatusInfo();
+        renderPatchNotesUI();
     };
+
+    // --- 📜 패치노트 실시간 관리 및 렌더링 ---
+    function renderPatchNotesUI() {
+        if (!state.patchNotes) {
+            state.patchNotes = { version: 'v1.4.0', content: '패치노트가 존재하지 않습니다.' };
+        }
+        
+        // 상단 헤더의 버전 배지 업데이트
+        const badge = document.getElementById('app-version-badge');
+        if (badge) badge.innerText = state.patchNotes.version;
+
+        // 패치노트 모달 내용 렌더링
+        const modalBody = document.getElementById('patchnotes-modal-body');
+        if (modalBody) {
+            const lines = state.patchNotes.content.split('\n').map(line => `<li>${line}</li>`).join('');
+            modalBody.innerHTML = `
+                <h4 style="color:var(--primary-color);">${state.patchNotes.version} (최신)</h4>
+                <ul style="padding-left: 20px; margin-bottom: 15px;">
+                    ${lines}
+                </ul>
+            `;
+        }
+    }
+
+    function savePatchNotesFromAdmin() {
+        const verInput = document.getElementById('admin-patch-version').value.trim();
+        const contentInput = document.getElementById('admin-patch-content').value.trim();
+
+        if (!verInput || !contentInput) {
+            return alert("버전명과 패치노트 내용을 모두 입력해 주세요.");
+        }
+
+        state.patchNotes = {
+            version: verInput,
+            content: contentInput
+        };
+
+        saveState();
+        renderPatchNotesUI();
+        alert("패치노트가 성공적으로 수정 및 업데이트 되었습니다!");
+    }
+
+    // --- ☁️ 클라우드 백업 & JSON 가져오기/내보내기 ---
+    function openCloudBackupModal() {
+        updateSnapshotStatusInfo();
+        document.getElementById('modal-cloud-backup').classList.add('active');
+    }
+
+    function exportDataJSON() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+        const downloadAnchor = document.createElement('a');
+        const fileName = `community_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", fileName);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        showToast("📥 백업 다운로드 완료", `${fileName} 파일이 저장되었습니다.`);
+    }
+
+    function importDataJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedState = JSON.parse(e.target.result);
+                if (importedState && typeof importedState === 'object' && importedState.posts) {
+                    if (confirm("기존 데이터가 업로드한 파일 데이터로 대체됩니다. 계속하시겠습니까?")) {
+                        state = { ...state, ...importedState };
+                        saveState();
+                        refreshApp();
+                        closeModal('modal-cloud-backup');
+                        alert("🎉 성공적으로 백업 데이터를 가져왔습니다!");
+                    }
+                } else {
+                    alert("올바르지 않은 백업 파일 형식입니다.");
+                }
+            } catch (err) {
+                alert("JSON 파일을 읽는 동안 오류가 발생했습니다.");
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function createCloudSnapshot() {
+        const snapshotData = {
+            timestamp: new Date().toLocaleString(),
+            data: state
+        };
+        localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshotData));
+        updateSnapshotStatusInfo();
+        showToast("⚡ 스냅샷 생성 완료", "브라우저 클라우드 구역에 성공적으로 저장되었습니다.");
+    }
+
+    function restoreCloudSnapshot() {
+        const snapshotRaw = localStorage.getItem(SNAPSHOT_KEY);
+        if (!snapshotRaw) {
+            return alert("저장된 스냅샷이 없습니다.");
+        }
+
+        try {
+            const snapshot = JSON.parse(snapshotRaw);
+            if (confirm(`생성일자 [${snapshot.timestamp}] 스냅샷으로 복원하시겠습니까?`)) {
+                state = { ...state, ...snapshot.data };
+                saveState();
+                refreshApp();
+                closeModal('modal-cloud-backup');
+                alert("🎉 스냅샷 복원이 완료되었습니다!");
+            }
+        } catch (e) {
+            alert("스냅샷을 복구하는 중 오류가 발생했습니다.");
+        }
+    }
+
+    function updateSnapshotStatusInfo() {
+        const snapshotRaw = localStorage.getItem(SNAPSHOT_KEY);
+        const infoElem = document.getElementById('snapshot-status-info');
+        if (infoElem) {
+            if (snapshotRaw) {
+                try {
+                    const snapshot = JSON.parse(snapshotRaw);
+                    infoElem.innerText = `마지막 스냅샷 생성일: ${snapshot.timestamp}`;
+                } catch(e) {
+                    infoElem.innerText = `마지막 스냅샷: 없음`;
+                }
+            } else {
+                infoElem.innerText = `마지막 스냅샷: 없음`;
+            }
+        }
+    }
+
+    // --- 새로고침 기능 ---
+    function refreshApp() {
+        loadState();
+        checkMaintenance();
+        updateUserUI();
+        renderPosts();
+        checkActiveBroadcast();
+        renderPatchNotesUI();
+        showToast("🔄 새로고침 완료", "최신 데이터로 갱신되었습니다.");
+    }
+
+    // --- 관리자 권한 확인 도우미 함수 ---
+    function isCurrentAdmin() {
+        if (!state.currentUser || !state.currentUser.nickname) return false;
+        const nick = state.currentUser.nickname;
+        const isKeyword = ADMIN_KEYWORDS.some(keyword => nick.includes(keyword));
+        const isAppointed = state.adminList && state.adminList.includes(nick);
+        return isKeyword || isAppointed;
+    }
+
+    function updateUserUI() {
+        document.getElementById('user-nickname-display').innerText = state.currentUser.nickname;
+        document.getElementById('anon-toggle').checked = state.currentUser.isAnon;
+        const badge = document.getElementById('user-admin-badge');
+        if (isCurrentAdmin()) {
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
 
     // --- 점검 모드 및 비상 해제 5회 터치 로직 ---
     function checkMaintenance() {
         const overlay = document.getElementById('maintenance-overlay');
         if (state.isMaintenance) {
-            // 닉네임에 ADMIN_KEYWORDS 중 하나라도 포함되어 있는지 확인
-            const isAllowedUser = ADMIN_KEYWORDS.some(keyword => state.currentUser.nickname.includes(keyword));
-            if (!isAllowedUser) {
+            if (!isCurrentAdmin()) {
                 overlay.style.display = 'flex';
             } else {
                 overlay.style.display = 'none';
@@ -831,7 +1171,7 @@
         const newNick = prompt("사용할 닉네임을 입력하세요:", state.currentUser.nickname);
         if (newNick && newNick.trim() !== '') {
             state.currentUser.nickname = newNick.trim();
-            document.getElementById('user-nickname-display').innerText = state.currentUser.nickname;
+            updateUserUI();
             saveState();
             updateUnreadNotiBadge();
             checkMaintenance();
@@ -924,7 +1264,8 @@
             const blindText = p.isBlind ? '<span class="badge badge-blind">블라인드</span>' : '';
             const pinnedBadge = p.isPinned ? '<span class="badge badge-pinned">📌 고정</span>' : '';
             const noticeBadge = p.title.includes('『공지』') ? '<span class="badge badge-notice">공지</span>' : '';
-            const titleDisplay = p.isBlind ? '<i>[신고로 인해 블라인드 처리된 게시물입니다.]</i>' : p.title;
+            const pollBadge = (p.poll && p.poll.options && p.poll.options.length > 0) ? ' 📊' : '';
+            const titleDisplay = p.isBlind ? '<i>[신고로 인해 블라인드 처리된 게시물입니다.]</i>' : p.title + pollBadge;
 
             return `
                 <tr class="${p.isPinned ? 'pinned-row' : ''}">
@@ -1002,6 +1343,24 @@
         }
     }
 
+    // --- 📊 POLL (투표) 관련 입력 폼 제어 ---
+    function togglePollInput(enabled) {
+        document.getElementById('poll-input-container').style.display = enabled ? 'block' : 'none';
+    }
+
+    function addPollOptionInput() {
+        const list = document.getElementById('poll-options-list');
+        const count = list.getElementsByClassName('poll-option-item').length;
+        if (count >= 5) return alert("선택지는 최대 5개까지 추가할 수 있습니다.");
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control poll-option-item';
+        input.placeholder = `선택지 ${count + 1}`;
+        input.style.marginBottom = '5px';
+        list.appendChild(input);
+    }
+
     function showWriteForm(editId = null) {
         if (state.bannedUsers.includes(state.currentUser.nickname)) {
             return alert("당신은 차단(벤)되었습니다.");
@@ -1011,12 +1370,37 @@
         document.getElementById('write-form-title').innerText = editId ? '게시물 수정' : '게시물 작성';
         document.getElementById('autosave-status-text').innerText = '';
 
+        document.getElementById('post-enable-poll').checked = false;
+        document.getElementById('poll-title-input').value = '';
+        document.getElementById('poll-options-list').innerHTML = `
+            <input type="text" class="form-control poll-option-item" placeholder="선택지 1" style="margin-bottom: 5px;">
+            <input type="text" class="form-control poll-option-item" placeholder="선택지 2" style="margin-bottom: 5px;">
+        `;
+        togglePollInput(false);
+
         if (editId) {
             const post = state.posts.find(p => p.id === editId);
             document.getElementById('post-title').value = post.title;
             document.getElementById('post-content').value = post.content;
             document.getElementById('post-image-url').value = post.imageUrl || '';
             document.getElementById('post-is-pinned').checked = !!post.isPinned;
+            
+            if (post.poll) {
+                document.getElementById('post-enable-poll').checked = true;
+                togglePollInput(true);
+                document.getElementById('poll-title-input').value = post.poll.title;
+                const list = document.getElementById('poll-options-list');
+                list.innerHTML = '';
+                post.poll.options.forEach((opt, idx) => {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-control poll-option-item';
+                    input.value = opt.text;
+                    input.placeholder = `선택지 ${idx + 1}`;
+                    input.style.marginBottom = '5px';
+                    list.appendChild(input);
+                });
+            }
         } else {
             document.getElementById('post-form').reset();
             uploadedImageBase64 = '';
@@ -1046,7 +1430,32 @@
         const isPinned = document.getElementById('post-is-pinned').checked;
         const finalImg = uploadedImageBase64 || urlImg;
 
-        if (isPinned) {
+        let pollData = null;
+        const isPollEnabled = document.getElementById('post-enable-poll').checked;
+        if (isPollEnabled) {
+            const pTitle = document.getElementById('poll-title-input').value.trim() || '투표';
+            const optionInputs = document.querySelectorAll('.poll-option-item');
+            const options = [];
+            
+            optionInputs.forEach((inp, idx) => {
+                if (inp.value.trim() !== '') {
+                    options.push({ id: idx, text: inp.value.trim(), votes: 0 });
+                }
+            });
+
+            if (options.length < 2) {
+                alert("투표를 첨부하려면 최소 2개 이상의 선택지를 입력해주세요.");
+                return;
+            }
+
+            pollData = {
+                title: pTitle,
+                options: options,
+                votedUsers: []
+            };
+        }
+
+        if (isPinned && !isCurrentAdmin()) {
             const authPw = prompt("게시글 고정을 위해 관리자 비밀번호를 입력하세요:");
             if (authPw !== ADMIN_PW) {
                 alert("관리자 비밀번호가 올바르지 않습니다.");
@@ -1060,6 +1469,13 @@
             post.content = content;
             post.imageUrl = finalImg;
             post.isPinned = isPinned;
+            if (pollData) {
+                if (!post.poll) {
+                    post.poll = pollData;
+                } else {
+                    post.poll.title = pollData.title;
+                }
+            }
         } else {
             const newPost = {
                 id: Date.now(),
@@ -1077,7 +1493,8 @@
                 isBlind: false,
                 isDeleted: false,
                 imageUrl: finalImg,
-                comments: []
+                comments: [],
+                poll: pollData
             };
             state.posts.unshift(newPost);
             localStorage.removeItem(AUTOSAVE_KEY);
@@ -1120,8 +1537,84 @@
             imgContainer.innerHTML = '';
         }
 
+        renderPoll(post);
         renderComments(post);
         showSection('view-detail');
+    }
+
+    // --- 📊 POLL (투표) 상세보기 및 제출 처리 ---
+    function renderPoll(post) {
+        const container = document.getElementById('detail-poll-container');
+        if (!post.poll || !post.poll.options || post.poll.options.length === 0 || post.isBlind) {
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        document.getElementById('detail-poll-title').innerText = '📊 ' + post.poll.title;
+
+        const optionsContainer = document.getElementById('detail-poll-options');
+        const hasVoted = post.poll.votedUsers && post.poll.votedUsers.includes(state.currentUser.nickname);
+        const totalVotes = post.poll.options.reduce((sum, opt) => sum + opt.votes, 0);
+
+        optionsContainer.innerHTML = post.poll.options.map(opt => {
+            const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+            
+            if (hasVoted) {
+                return `
+                    <div style="margin-bottom: 12px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+                            <span><b>${opt.text}</b></span>
+                            <span style="color:var(--sub-text);">${opt.votes}표 (${percent}%)</span>
+                        </div>
+                        <div style="width:100%; background-color:var(--bg-color); height:14px; border-radius:7px; overflow:hidden; border:1px solid var(--border-color);">
+                            <div style="width:${percent}%; background-color:var(--primary-color); height:100%; transition:width 0.4s ease-in-out;"></div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div style="margin-bottom: 10px;">
+                        <label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.9rem;">
+                            <input type="radio" name="poll-option-radio" value="${opt.id}">
+                            ${opt.text}
+                        </label>
+                    </div>
+                `;
+            }
+        }).join('');
+
+        const submitBtn = document.getElementById('poll-submit-btn');
+        if (hasVoted) {
+            submitBtn.style.display = 'none';
+        } else {
+            submitBtn.style.display = 'block';
+        }
+    }
+
+    function submitPollVote() {
+        if (state.bannedUsers.includes(state.currentUser.nickname)) {
+            return alert("당신은 차단(벤)된 상태입니다.");
+        }
+
+        const selected = document.querySelector('input[name="poll-option-radio"]:checked');
+        if (!selected) return alert("투표할 항목을 선택해주세요.");
+
+        const post = state.posts.find(p => p.id === state.currentPostId);
+        if (!post || !post.poll) return;
+
+        const optId = parseInt(selected.value);
+        const targetOption = post.poll.options.find(o => o.id === optId);
+
+        if (targetOption) {
+            targetOption.votes++;
+            if (!post.poll.votedUsers) post.poll.votedUsers = [];
+            post.poll.votedUsers.push(state.currentUser.nickname);
+            
+            saveState();
+            alert("투표 참여가 완료되었습니다!");
+            openPost(state.currentPostId);
+        }
     }
 
     function votePost(isLike) {
@@ -1325,6 +1818,63 @@
         document.getElementById('msg-content-input').value = '';
     }
 
+    // --- 📻 운영자 실시간 방송 라디오 팝업 제어 ---
+    function sendBroadcastMessage() {
+        const content = document.getElementById('broadcast-msg-input').value.trim();
+        if (!content) return alert("방송할 내용을 입력해 주세요.");
+
+        state.activeBroadcast = {
+            id: Date.now(),
+            content: content
+        };
+
+        saveState();
+        alert("실시간 방송이 송출되었습니다!");
+        document.getElementById('broadcast-msg-input').value = '';
+        checkActiveBroadcast();
+    }
+
+    function checkActiveBroadcast() {
+        const popup = document.getElementById('broadcast-popup');
+        if (state.activeBroadcast && state.activeBroadcast.content) {
+            document.getElementById('broadcast-content').innerText = state.activeBroadcast.content;
+            popup.style.display = 'block';
+        } else {
+            popup.style.display = 'none';
+        }
+    }
+
+    function closeBroadcastPopup() {
+        document.getElementById('broadcast-popup').style.display = 'none';
+    }
+
+    // --- 👑 관리자 임명 제어 ---
+    function addAdminRole() {
+        const input = document.getElementById('add-admin-input');
+        const nickname = input.value.trim();
+        if (!nickname) return alert("임명할 닉네임을 입력하세요.");
+
+        if (!state.adminList) state.adminList = [];
+        if (state.adminList.includes(nickname)) {
+            return alert("이미 관리자로 등록된 닉네임입니다.");
+        }
+
+        state.adminList.push(nickname);
+        saveState();
+        input.value = '';
+        renderAdminPanel();
+        updateUserUI();
+        alert(`'${nickname}' 님이 관리자로 임명되었습니다.`);
+    }
+
+    function removeAdminRole(nickname) {
+        if (!confirm(`'${nickname}' 님의 관리자 권한을 해제하시겠습니까?`)) return;
+        state.adminList = state.adminList.filter(u => u !== nickname);
+        saveState();
+        renderAdminPanel();
+        updateUserUI();
+    }
+
     // --- ADMIN PANEL & TRASH & MAINTENANCE ---
     function openAdminModal() {
         document.getElementById('modal-admin').classList.add('active');
@@ -1332,7 +1882,7 @@
 
     function authenticateAdmin() {
         const pw = document.getElementById('admin-password-input').value;
-        if (pw === ADMIN_PW) {
+        if (pw === ADMIN_PW || isCurrentAdmin()) {
             document.getElementById('admin-auth-sec').style.display = 'none';
             document.getElementById('admin-panel-sec').style.display = 'block';
             renderAdminPanel();
@@ -1350,9 +1900,26 @@
     }
 
     function renderAdminPanel() {
+        // 기존 패치노트 설정값을 관리자 폼에 셋팅
+        if (state.patchNotes) {
+            document.getElementById('admin-patch-version').value = state.patchNotes.version || '';
+            document.getElementById('admin-patch-content').value = state.patchNotes.content || '';
+        }
+
         const maintBtn = document.getElementById('maintenance-toggle-btn');
         maintBtn.innerText = state.isMaintenance ? '🔓 점검모드 해제하기' : '🔒 점검중 버튼 누르기';
         maintBtn.className = state.isMaintenance ? 'btn btn-success' : 'btn btn-danger';
+
+        const adminRoleList = document.getElementById('admin-role-list');
+        if (!state.adminList || state.adminList.length === 0) {
+            adminRoleList.innerHTML = '등록된 지정 관리자가 없습니다.';
+        } else {
+            adminRoleList.innerHTML = '<b>지정 관리자:</b> ' + state.adminList.map(u => `
+                <span class="badge badge-notice" style="display:inline-flex; align-items:center; gap:4px; margin-right:5px; padding:3px 6px;">
+                    ${u} <a href="#" style="color:white; font-weight:bold; text-decoration:none;" onclick="removeAdminRole('${u}')">×</a>
+                </span>
+            `).join('');
+        }
 
         const trashList = document.getElementById('admin-trash-list');
         const deletedPosts = state.posts.filter(p => p.isDeleted);
