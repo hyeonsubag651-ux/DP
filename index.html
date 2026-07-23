@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>커뮤니티 웹앱 v1.2.0</title>
+    <title>커뮤니티 웹앱 v1.2.1</title>
     <style>
         :root {
             --bg-color: #f4f6f9;
@@ -61,6 +61,7 @@
             font-size: 1.5rem;
             font-weight: bold;
             padding: 20px;
+            user-select: none;
         }
 
         #app-container {
@@ -446,8 +447,8 @@
 </head>
 <body>
 
-<!-- 관리자 점검중 오버레이 화면 -->
-<div id="maintenance-overlay">
+<!-- 관리자 점검중 오버레이 화면 (연속 5번 터치 시 해제 모달) -->
+<div id="maintenance-overlay" onclick="handleMaintenanceTap()">
     죄송합니다! 서비스에 차질이 생겨 점검중 입니다!
 </div>
 
@@ -455,7 +456,7 @@
     <!-- Header -->
     <header>
         <div class="header-title" onclick="switchGallery(currentGalleryId)">
-            ⚡ 커뮤니티 <span class="version-badge" onclick="event.stopPropagation(); openPatchNotesModal();">v1.2.0</span>
+            ⚡ 커뮤니티 <span class="version-badge" onclick="event.stopPropagation(); openPatchNotesModal();">v1.2.1</span>
         </div>
         <div class="header-controls">
             <div class="notification-btn-wrap">
@@ -635,21 +636,10 @@
             <button class="btn btn-outline" onclick="closeModal('modal-patchnotes')">X</button>
         </div>
         <div style="line-height: 1.8; font-size: 0.9rem;">
-            <h4 style="color:var(--primary-color);">v1.2.0 (최신)</h4>
+            <h4 style="color:var(--primary-color);">v1.2.1 (최신)</h4>
             <ul style="padding-left: 20px; margin-bottom: 15px;">
-                <li><b>자동 저장</b>: 작성 중 새로고침해도 복구 기능 추가</li>
-                <li><b>휴지통 복원</b>: 삭제된 글을 관리자에서 원복 가능</li>
-                <li><b>무한 스크롤</b>: 게시글 목록에 무한 스크롤 적용</li>
-                <li><b>점검 모드</b>: 관리자 전용 서비스 점검 기능 추가</li>
-            </ul>
-            <h4 style="color:var(--sub-text);">v1.1.0</h4>
-            <ul style="padding-left: 20px; margin-bottom: 15px;">
-                <li>실시간 이메일/알림 수신함 및 토스트 메시지 추가</li>
-                <li>상단 고정 및 공지 기능 확장</li>
-            </ul>
-            <h4 style="color:var(--sub-text);">v1.0.0</h4>
-            <ul style="padding-left: 20px;">
-                <li>커뮤니티 기본 기능 (게시글 작성, 댓글, 추천, 다크모드) 오픈</li>
+                <li><b>점검 모드 비상 탈출 기능</b>: 화면 5회 터치 시 비상 해제 모드 작동</li>
+                <li>웹앱(PWA) 전용 탈출 루틴 포함</li>
             </ul>
         </div>
     </div>
@@ -675,7 +665,7 @@
             <div style="background-color: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 6px; margin-bottom: 15px;">
                 <h4 style="color: var(--danger-color); margin-bottom: 5px;">🚨 시스템 점검 설정</h4>
                 <p style="font-size: 0.8rem; color: var(--sub-text); margin-bottom: 8px;">
-                    점검중 활성화 시 지정된 관리자(운영자/제작자/『카이』 등) 외 일반 유저 접근을 전면 차단합니다.
+                    점검중 활성화 시 지정된 키워드가 포함된 닉네임 외 일반 유저 접근을 전면 차단합니다.
                 </p>
                 <button id="maintenance-toggle-btn" class="btn btn-danger" onclick="toggleMaintenanceMode()">
                     🔒 점검중 버튼 누르기
@@ -716,15 +706,15 @@
     const AUTOSAVE_KEY = 'forum_app_autosave_draft';
     const ADMIN_PW = '카이만세0000';
     
-    // 점검 모드 시 이용 권한이 있는 관리자 닉네임 목록
-    const ADMIN_NICKNAMES = ['운영자', '제작자', '『카이』', '관리자'];
+    // 점검 모드 예외 키워드 목록 (닉네임에 하나라도 포함되면 우회 가능)
+    const ADMIN_KEYWORDS = ['운영자', '제작자', '카이', '개발자', '관리자'];
 
     let state = {
         currentUser: { nickname: '유저' + Math.floor(Math.random() * 8999 + 1000), isAnon: false },
         currentGalleryId: 'free',
         currentPostId: null,
         replyTargetCommentId: null,
-        isMaintenance: false, // 점검 상태
+        isMaintenance: false,
         bannedUsers: [],
         notifications: [],
         galleries: [
@@ -734,15 +724,15 @@
         posts: []
     };
 
-    // 무한 스크롤 관련 변수
     let visiblePostLimit = 10;
     const POSTS_PER_PAGE = 10;
+    let tapCount = 0;
+    let tapTimer = null;
 
     function generateSamplePosts() {
         const samples = [
-            { id: 1, galleryId: 'free', title: '『공지』 커뮤니티 v1.2.0 업데이트 안내', content: '자동저장, 휴지통 복구, 무한스크롤, 패치노트, 점검모드가 통합되었습니다.', author: '운영자', isAnon: false, isPinned: true, date: new Date().toLocaleDateString(), views: 120, likes: 45, dislikes: 0, reports: 0, isBlind: false, isDeleted: false, comments: [] }
+            { id: 1, galleryId: 'free', title: '『공지』 커뮤니티 v1.2.1 업데이트 안내', content: '점검 모드 비상 탈출 이스터 에그가 추가되었습니다.', author: '운영자', isAnon: false, isPinned: true, date: new Date().toLocaleDateString(), views: 120, likes: 45, dislikes: 0, reports: 0, isBlind: false, isDeleted: false, comments: [] }
         ];
-        // 무한 스크롤 테스트용 더미 생성
         for(let i = 2; i <= 25; i++) {
             samples.push({
                 id: i,
@@ -784,7 +774,6 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
-    // --- INITIALIZATION ---
     let uploadedImageBase64 = '';
     let autoSaveTimer = null;
 
@@ -799,11 +788,12 @@
         initInfiniteScroll();
     };
 
-    // --- 점검 모드 체크 ---
+    // --- 점검 모드 및 비상 해제 5회 터치 로직 ---
     function checkMaintenance() {
         const overlay = document.getElementById('maintenance-overlay');
         if (state.isMaintenance) {
-            const isAllowedUser = ADMIN_NICKNAMES.includes(state.currentUser.nickname);
+            // 닉네임에 ADMIN_KEYWORDS 중 하나라도 포함되어 있는지 확인
+            const isAllowedUser = ADMIN_KEYWORDS.some(keyword => state.currentUser.nickname.includes(keyword));
             if (!isAllowedUser) {
                 overlay.style.display = 'flex';
             } else {
@@ -811,6 +801,28 @@
             }
         } else {
             overlay.style.display = 'none';
+        }
+    }
+
+    function handleMaintenanceTap() {
+        tapCount++;
+        clearTimeout(tapTimer);
+        
+        tapTimer = setTimeout(() => {
+            tapCount = 0;
+        }, 2000);
+
+        if (tapCount >= 5) {
+            tapCount = 0;
+            const inputPw = prompt("비상 해제 모드: 관리자 비밀번호를 입력하세요.");
+            if (inputPw === ADMIN_PW) {
+                state.isMaintenance = false;
+                saveState();
+                checkMaintenance();
+                alert("점검 모드가 즉시 해제되었습니다!");
+            } else if (inputPw !== null) {
+                alert("비밀번호가 올바르지 않습니다.");
+            }
         }
     }
 
@@ -896,7 +908,6 @@
     // --- POST LIST & INFINITE SCROLL ---
     function renderPosts() {
         const tbody = document.getElementById('post-list-body');
-        // 삭제되지 않은(isDeleted != true) 게시글만 필터링
         const posts = state.posts.filter(p => p.galleryId === state.currentGalleryId && !p.isDeleted);
 
         if (posts.length === 0) {
@@ -956,7 +967,7 @@
     // --- AUTO SAVE & WRITE FORM ---
     function triggerAutoSave() {
         const editId = document.getElementById('edit-post-id').value;
-        if (editId) return; // 수정 모드 시 자동 저장 스킵
+        if (editId) return;
 
         clearTimeout(autoSaveTimer);
         const statusText = document.getElementById('autosave-status-text');
@@ -1069,7 +1080,7 @@
                 comments: []
             };
             state.posts.unshift(newPost);
-            localStorage.removeItem(AUTOSAVE_KEY); // 작성 완료 시 임시저장 데이터 삭제
+            localStorage.removeItem(AUTOSAVE_KEY);
 
             if (title.includes('『공지』')) {
                 addNotification({
@@ -1144,7 +1155,6 @@
         showWriteForm(state.currentPostId);
     }
 
-    // 삭제 시 휴지통 이동 처리 (isDeleted: true)
     function deleteCurrentPost() {
         if (!confirm("게시글을 삭제하시겠습니까? (삭제된 글은 관리자 휴지통에서 복원할 수 있습니다)")) return;
         const post = state.posts.find(p => p.id === state.currentPostId);
@@ -1340,12 +1350,10 @@
     }
 
     function renderAdminPanel() {
-        // 점검 버튼 텍스트 업데이트
         const maintBtn = document.getElementById('maintenance-toggle-btn');
         maintBtn.innerText = state.isMaintenance ? '🔓 점검모드 해제하기' : '🔒 점검중 버튼 누르기';
         maintBtn.className = state.isMaintenance ? 'btn btn-success' : 'btn btn-danger';
 
-        // 휴지통 리스트
         const trashList = document.getElementById('admin-trash-list');
         const deletedPosts = state.posts.filter(p => p.isDeleted);
 
@@ -1363,7 +1371,6 @@
             `).join('');
         }
 
-        // 신고 리스트
         const repList = document.getElementById('admin-reports-list');
         const reportedPosts = state.posts.filter(p => (p.reports > 0 || p.isBlind) && !p.isDeleted);
 
@@ -1381,7 +1388,6 @@
             `).join('');
         }
 
-        // 차단 유저 리스트
         const banList = document.getElementById('admin-ban-list');
         banList.innerHTML = state.bannedUsers.map(u => `
             <span class="badge badge-blind" style="display:inline-flex; align-items:center; gap:4px; margin-right:5px; padding:4px 8px;">
@@ -1450,4 +1456,3 @@
 </script>
 </body>
 </html>
-
