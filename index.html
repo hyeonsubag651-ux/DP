@@ -507,6 +507,8 @@
             ⚡ 커뮤니티 <span class="version-badge" id="app-version-badge" onclick="event.stopPropagation(); openPatchNotesModal();">v1.4.0</span>
         </div>
         <div class="header-controls">
+            <!-- 🎧 고객센터 버튼 추가 -->
+            <button class="btn btn-primary" onclick="showSupportPage()">🎧 고객센터</button>
             <!-- 새로고침 버튼 -->
             <button class="btn btn-outline" onclick="refreshApp()">🔄 새로고침</button>
             <!-- ☁️ 클라우드 백업 버튼 -->
@@ -672,6 +674,52 @@
                 </div>
             </div>
         </section>
+
+        <!-- 4. 🎧 고객센터 (문의 / 버그 제보) 뷰 신규 추가 -->
+        <section id="view-support" class="view-section">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 15px;">
+                    <h2>🎧 고객센터 (문의 / 버그 제보)</h2>
+                    <button class="btn btn-secondary" onclick="showList()">← 목록으로 돌아가기</button>
+                </div>
+                <p style="color: var(--sub-text); font-size: 0.9rem; margin-bottom: 20px;">
+                    서비스 사용 중 발생한 불편사항, 버그, 또는 건의사항을 남겨주세요. 작성된 접수 내용은 <b>제작자 및 전체 관리자</b>에게 실시간 알림으로 즉시 전달됩니다.
+                </p>
+
+                <form id="support-form" onsubmit="handleSupportSubmit(event)">
+                    <div class="form-group">
+                        <label for="support-type">접수 유형</label>
+                        <select id="support-type" class="form-control" required>
+                            <option value="🐛 버그 제보">🐛 버그 제보</option>
+                            <option value="❓ 일반 문의">❓ 일반 문의</option>
+                            <option value="💡 기능 건의">💡 기능 건의</option>
+                            <option value="🚨 기타 제보">🚨 기타 제보</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="support-title">제목</label>
+                        <input type="text" id="support-title" class="form-control" required placeholder="문의/제보 제목을 입력하세요">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="support-content">상세 내용</label>
+                        <textarea id="support-content" class="form-control" required placeholder="발생한 문제 상황이나 건의 내용을 최대한 자세히 작성해주세요. (재현 방법, 브라우저 환경 등)"></textarea>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                        <button type="button" class="btn btn-secondary" onclick="showList()">취소</button>
+                        <button type="submit" class="btn btn-primary">📩 문의 및 제보 제출하기</button>
+                    </div>
+                </form>
+
+                <!-- 내가 접수한 문의 내역 -->
+                <div style="margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                    <h3>📋 내가 접수한 문의 내역</h3>
+                    <div id="my-support-list" style="margin-top: 10px;"></div>
+                </div>
+            </div>
+        </section>
     </main>
 </div>
 
@@ -699,7 +747,7 @@
                         <input type="file" id="import-json-file" accept=".json" style="display: none;" onchange="importDataJSON(event)">
                     </label>
                 </div>
-                <small style="color: var(--sub-text);">.json 파일로 내보낸 백업본을 언제든 다시 업로드하여 순식간에 데이터를 복원할 수 있습니다.</small>
+                <small style="color: var(--sub-text); me">.json 파일로 내보낸 백업본을 언제든 다시 업로드하여 순식간에 데이터를 복원할 수 있습니다.</small>
             </div>
 
             <div style="background-color: var(--bg-color); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
@@ -774,8 +822,12 @@
         </div>
 
         <div id="admin-panel-sec" style="display: none;">
+            <!-- 🎧 고객센터 접수 목록 관리 기능 -->
+            <h4 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-top: 10px; color: var(--primary-color);">🎧 고객센터 접수 및 버그 제보 관리</h4>
+            <div id="admin-support-list" style="margin: 10px 0; max-height: 180px; overflow-y: auto;"></div>
+
             <!-- 📜 패치노트 실시간 수정 관리 기능 -->
-            <h4 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-top: 10px;">📜 실시간 패치노트 수정 및 관리</h4>
+            <h4 style="border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-top: 20px;">📜 실시간 패치노트 수정 및 관리</h4>
             <div style="margin: 10px 0;">
                 <div class="form-group">
                     <label>버전 명칭 (예: v1.4.0)</label>
@@ -866,7 +918,7 @@
         activeBroadcast: null,
         patchNotes: {
             version: 'v1.4.0',
-            content: '• 클라우드 백업 및 JSON 파일 복원 기능 추가\n• 실시간 패치노트 관리 기능 구현'
+            content: '• 고객센터(문의/버그 제보) 페이지 신규 추가\n• 클라우드 백업 및 JSON 파일 복원 기능 추가\n• 실시간 패치노트 관리 기능 구현'
         },
         bannedUsers: [],
         notifications: [],
@@ -874,7 +926,8 @@
             { id: 'free', name: '자유 갤러리' },
             { id: 'humor', name: '유머 갤러리' }
         ],
-        posts: []
+        posts: [],
+        supportInquiries: [] // 🎧 고객센터 문의 내역 저장소 추가
     };
 
     let visiblePostLimit = 10;
@@ -888,7 +941,7 @@
                 id: 1, 
                 galleryId: 'free', 
                 title: '『공지』 커뮤니티 v1.4.0 업데이트 안내', 
-                content: '클라우드 백업 및 JSON 파일 복원 기능이 추가되었습니다.', 
+                content: '고객센터 문의 기능 및 클라우드 백업/복원 기능이 추가되었습니다.', 
                 author: '운영자', 
                 isAnon: false, 
                 isPinned: true, 
@@ -901,10 +954,10 @@
                 isDeleted: false, 
                 comments: [],
                 poll: {
-                    title: "새로 추가된 백업 기능은 어떠신가요?",
+                    title: "새로 추가된 고객센터 기능은 어떠신가요?",
                     options: [
                         { id: 0, text: "완전 유용해요! 👍", votes: 20 },
-                        { id: 1, text: "데이터 보관이 편리해졌습니다 👌", votes: 12 }
+                        { id: 1, text: "소통이 편리해졌습니다 👌", votes: 12 }
                     ],
                     votedUsers: []
                 }
@@ -938,6 +991,7 @@
             try {
                 const parsed = JSON.parse(data);
                 state = { ...state, ...parsed };
+                if (!state.supportInquiries) state.supportInquiries = [];
             } catch (e) {
                 console.error("Failed to parse stored state", e);
             }
@@ -966,6 +1020,92 @@
         updateSnapshotStatusInfo();
         renderPatchNotesUI();
     };
+
+    // --- 🎧 고객센터 페이지 제어 및 문의 전송 ---
+    function showSupportPage() {
+        showSection('view-support');
+        renderMySupportInquiries();
+    }
+
+    function handleSupportSubmit(e) {
+        e.preventDefault();
+
+        if (state.bannedUsers.includes(state.currentUser.nickname)) {
+            return alert("당신은 차단(벤)된 상태이므로 문의를 제출할 수 없습니다.");
+        }
+
+        const type = document.getElementById('support-type').value;
+        const title = document.getElementById('support-title').value.trim();
+        const content = document.getElementById('support-content').value.trim();
+
+        if (!title || !content) return alert("제목과 상세 내용을 입력해 주세요.");
+
+        const newInquiry = {
+            id: Date.now(),
+            type: type,
+            title: title,
+            content: content,
+            author: state.currentUser.nickname,
+            date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: '접수 완료'
+        };
+
+        if (!state.supportInquiries) state.supportInquiries = [];
+        state.supportInquiries.unshift(newInquiry);
+
+        // 🔔 제작자 및 전체 관리자(adminList + 주요 키워드)에게 알림 발송
+        const notiTitle = `🚨 [고객센터] 새로운 ${type} 접수됨`;
+        const notiContent = `작성자: ${newInquiry.author}\n제목: ${newInquiry.title}\n내용: ${newInquiry.content}`;
+
+        // 전체 관리자에게 알림 전송
+        if (state.adminList && state.adminList.length > 0) {
+            state.adminList.forEach(adminNick => {
+                addNotification({
+                    targetUser: adminNick,
+                    title: notiTitle,
+                    content: notiContent,
+                    type: 'notice'
+                });
+            });
+        }
+
+        // 전체 대상 공지형 알림으로도 기록 남김
+        addNotification({
+            targetUser: '전체',
+            title: `🎧 [고객센터 알림] ${type}가 접수되었습니다.`,
+            content: `'${newInquiry.author}'님이 고객센터에 [${title}] 건을 접수했습니다.`,
+            type: 'notice'
+        });
+
+        saveState();
+        document.getElementById('support-form').reset();
+        renderMySupportInquiries();
+        alert("문의 및 버그 제보가 성공적으로 제출되었습니다!\n제작자 및 관리자에게 실시간 알림이 전달되었습니다.");
+    }
+
+    function renderMySupportInquiries() {
+        const container = document.getElementById('my-support-list');
+        const myInquiries = (state.supportInquiries || []).filter(item => item.author === state.currentUser.nickname);
+
+        if (myInquiries.length === 0) {
+            container.innerHTML = '<p style="color: var(--sub-text); font-size: 0.85rem;">접수하신 문의 내역이 없습니다.</p>';
+            return;
+        }
+
+        container.innerHTML = myInquiries.map(item => `
+            <div style="background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span class="badge badge-notice" style="margin-left:0;">${item.type}</span>
+                    <small style="color: var(--sub-text);">${item.date}</small>
+                </div>
+                <h4 style="margin-bottom: 6px;">${item.title}</h4>
+                <p style="font-size: 0.9rem; color: var(--sub-text); white-space: pre-wrap; margin-bottom: 8px;">${item.content}</p>
+                <div style="font-size: 0.8rem; text-align: right; color: var(--primary-color); font-weight: bold;">
+                    상태: ${item.status}
+                </div>
+            </div>
+        `).join('');
+    }
 
     // --- 📜 패치노트 실시간 관리 및 렌더링 ---
     function renderPatchNotesUI() {
@@ -1906,6 +2046,28 @@
             document.getElementById('admin-patch-content').value = state.patchNotes.content || '';
         }
 
+        // 고객센터 접수 목록 관리자 뷰 렌더링
+        const adminSuppList = document.getElementById('admin-support-list');
+        const inquiries = state.supportInquiries || [];
+        if (inquiries.length === 0) {
+            adminSuppList.innerHTML = '<p style="font-size:0.85rem; color: var(--sub-text);">접수된 문의 및 버그 제보가 없습니다.</p>';
+        } else {
+            adminSuppList.innerHTML = inquiries.map(item => `
+                <div style="border-bottom:1px solid var(--border-color); padding: 8px 0; font-size:0.85rem;">
+                    <div style="display:flex; justify-style:space-between; margin-bottom:2px;">
+                        <b>[${item.type}] ${item.title}</b>
+                        <small style="color:var(--sub-text);">${item.author} (${item.date})</small>
+                    </div>
+                    <div style="color:var(--sub-text); font-size:0.8rem; margin-bottom:4px;">${item.content}</div>
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        <span class="badge badge-notice">${item.status}</span>
+                        <button class="btn btn-success" style="padding:1px 5px; font-size:0.7rem;" onclick="updateSupportStatus(${item.id}, '처리 완료')">완료 처리</button>
+                        <button class="btn btn-danger" style="padding:1px 5px; font-size:0.7rem;" onclick="deleteSupportInquiry(${item.id})">삭제</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         const maintBtn = document.getElementById('maintenance-toggle-btn');
         maintBtn.innerText = state.isMaintenance ? '🔓 점검모드 해제하기' : '🔒 점검중 버튼 누르기';
         maintBtn.className = state.isMaintenance ? 'btn btn-success' : 'btn btn-danger';
@@ -1961,6 +2123,30 @@
                 ${u} <a href="#" style="color:white; font-weight:bold; text-decoration:none;" onclick="unbanUser('${u}')">×</a>
             </span>
         `).join('');
+    }
+
+    function updateSupportStatus(id, newStatus) {
+        const inquiry = (state.supportInquiries || []).find(i => i.id === id);
+        if (inquiry) {
+            inquiry.status = newStatus;
+            saveState();
+            renderAdminPanel();
+            
+            // 작성자에게 알려주기
+            addNotification({
+                targetUser: inquiry.author,
+                title: '🎧 [고객센터] 문의 처리 상태 안내',
+                content: `'${inquiry.title}' 문의 건이 [${newStatus}] 상태로 변경되었습니다.`,
+                type: 'msg'
+            });
+        }
+    }
+
+    function deleteSupportInquiry(id) {
+        if (!confirm("해당 문의 접수 내역을 삭제하시겠습니까?")) return;
+        state.supportInquiries = (state.supportInquiries || []).filter(i => i.id !== id);
+        saveState();
+        renderAdminPanel();
     }
 
     function restorePost(id) {
